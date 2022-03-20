@@ -1,5 +1,5 @@
 CXX = g++
-CPPFLAGS = --std=c++17 -Wall -Wextra
+CPPFLAGS = --std=c++20 -Wall -Wextra
 BUILD_PATH ?= .
 BIN_PATH ?= .
 

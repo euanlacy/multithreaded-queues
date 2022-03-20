@@ -9,8 +9,9 @@
 #define BENCHMARK(...)
 
 TEST_CASE("Create") {
-    CQueue<uint32_t> queue{};
-    queue.enqueue(0);
-    REQUIRE(queue.dequeue().get() == 0);
+    CQueue<uint32_t> queue {};
+    queue.enqueue(3);
+    auto test = queue.dequeue();
+    REQUIRE(*test == 3);
 }
 

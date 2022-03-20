@@ -4,26 +4,27 @@
 #include <mutex>
 #include <memory>
 
+template<typename T>
 class CQueue {
 private:
     std::mutex mut;
-    std::deque<uint32_t> data;
+    std::deque<T> data;
 public:
-    void enqueue(uint32_t payload) {
+    void enqueue(T payload) {
         std::lock_guard<std::mutex> lockGuard(this->mut);
         this->data.push_back(payload);
     }
 
-    uint32_t dequeue() {
+    std::shared_ptr<T> dequeue() {
         std::lock_guard<std::mutex> lockGuard(this->mut);
 
         if (!this->data.empty()) {
-            std::shared_ptr<uint32_t> ret;
             auto front = this->data.front();
+            auto ret = std::make_shared<T>(front);
             this->data.pop_front();
-            return front;
+            return ret;
         } else {
-            return 0;
+            return std::shared_ptr<T>();
         }
     }
 };
