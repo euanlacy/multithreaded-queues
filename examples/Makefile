@@ -1,5 +1,5 @@
 CCX = g++
-CPPFLAGS = -std=c++20 -O3 -g -Wmissing-field-initializers -Wall -Wextra
+CPPFLAGS = --std=c++20 -O3 -g -Wmissing-field-initializers -Wall -Wextra
 
 BUILD_PATH ?= .
 BIN_PATH ?= .
@@ -7,10 +7,8 @@ BIN_PATH ?= .
 vpath %.o ${BUILD_PATH}
 vpath % ${BIN_PATH}
 
-all: long short
+all: concept_example
 
-long: long.c knuth_bendix.o intlist.o lists.o brute_force.o
-	${CC} -o ../bin/$@ $^
+concept_example: concept_example.cpp
+	${CCX} ${CPPFLAGS} -o ${BIN_PATH}/$@ $^
 
-short: short.c knuth_bendix.o intlist.o lists.o brute_force.o
-	${CC} -o ../bin/$@ $^

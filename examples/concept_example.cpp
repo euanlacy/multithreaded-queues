@@ -1,8 +1,8 @@
 #include <cstdint>
 #include <iostream>
 
-#include "src/queue.hpp"
-#include "src/coarse_queue.hpp"
+#include "../src/queue.hpp"
+#include "../src/coarse_queue.hpp"
 
 typedef uint32_t u32;
 typedef int32_t  i32;
