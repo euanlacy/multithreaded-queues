@@ -25,17 +25,5 @@ void test() {
 }
 
 int main() {
-    /* auto p1 = Point { .x = 10, .y = 32 }; */
-    /* auto p2 = Point { .x = 2,  .y = 5 }; */
-    /* auto p3 = Point { .x = 1,  .y = 9 }; */
-
     test<CQueue<u32>>();
-
-    /* queue.enqueue(p1); */
-    /* queue.enqueue(p2); */
-    /* queue.enqueue(p3); */
-
-    /* std::cout << queue.dequeue()->x << std::endl; */
-    /* std::cout << queue.dequeue()->y << std::endl; */
-    /* std::cout << queue.dequeue()->y << std::endl; */
 }
