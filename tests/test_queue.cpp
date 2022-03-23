@@ -13,10 +13,13 @@
 template<typename T>
 using QueueTypes = std::tuple<CQueue<T>>;
 
-TEST_CASE("Create") {
-    CQueue<uint32_t> queue {};
+TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>) {
+    static_assert(Queue<TestType, int>);
+    auto queue = TestType();
+
     queue.enqueue(3);
     auto test = queue.dequeue();
+
     REQUIRE(*test == 3);
 }
 
