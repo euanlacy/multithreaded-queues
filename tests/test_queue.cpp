@@ -8,12 +8,13 @@
 #include <catch2/catch.hpp>
 
 #include "../src/coarse_queue.hpp"
+#include "../src/fine_queue.hpp"
 #include "../src/queue.hpp"
 
 template<typename T>
 using QueueTypes = std::tuple<CQueue<T>>;
 
-TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>) {
+TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>, FQueue<int>) {
     static_assert(Queue<TestType, int>);
     auto queue = TestType();
 
@@ -61,8 +62,32 @@ TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>) {
     }
 }
 
-TEST_CASE("Many Threads") {
-    CQueue<uint32_t> queue {};
+TEMPLATE_TEST_CASE("Many Threads", "[int]", CQueue<int>, FQueue<int>) {
+    TestType queue {};
+
+    SECTION("One Producer, One Consumer") {
+        auto producer = std::async([&queue]{
+            for (int i = 1; i <= 100; i++) {
+                queue.enqueue(i);
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        });
+
+        auto consumer = std::async([&queue]{
+            int num_dequeued = 0; 
+            while (num_dequeued != 100) {
+                auto value = queue.dequeue();
+                if (value) {
+                    REQUIRE(*value == ++num_dequeued);
+                } else {
+                    std::cout << "waiting for producer" << std::endl;
+                }
+            }
+        });
+
+        producer.get();
+        consumer.get();
+    }
 
     auto fut  = std::async([&queue]{ queue.enqueue(3); });
     auto fut1 = std::async([&queue]{ queue.enqueue(20); });

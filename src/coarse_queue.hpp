@@ -23,7 +23,7 @@ public:
     }
 
     std::optional<T> dequeue() {
-        std::unique_lock<std::mutex> mlock(this->mut);
+        std::lock_guard<std::mutex> lockGuard(this->mut);
 
         if (!this->data.empty()) {
             auto ret = this->data.front();
