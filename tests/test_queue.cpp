@@ -63,7 +63,7 @@ TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>, FQueue<int>) 
 }
 
 TEMPLATE_TEST_CASE("Many Threads", "[int]", CQueue<int>, FQueue<int>) {
-    TestType queue {};
+    auto queue = TestType();
 
     SECTION("One Producer, One Consumer") {
         auto producer = std::async([&queue]{
@@ -79,8 +79,6 @@ TEMPLATE_TEST_CASE("Many Threads", "[int]", CQueue<int>, FQueue<int>) {
                 auto value = queue.dequeue();
                 if (value) {
                     REQUIRE(*value == ++num_dequeued);
-                } else {
-                    std::cout << "waiting for producer" << std::endl;
                 }
             }
         });

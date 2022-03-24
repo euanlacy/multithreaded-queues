@@ -28,13 +28,12 @@ public:
     }
 
     void enqueue(T payload) {
-        auto dummy_node = std::make_unique<Node>(T {});
-        auto new_tail = dummy_node.get();
+        auto new_node = std::make_unique<Node>(std::move(payload));
+        auto new_tail = new_node.get();
 
         std::lock_guard<std::mutex> tail_lock(this->tail_mutex);
 
-        this->tail->next = std::move(dummy_node);
-        this->tail->data = std::move(payload);
+        this->tail->next = std::move(new_node);
         this->tail = new_tail;
     }
 
@@ -43,7 +42,7 @@ public:
 
         if (!this->head->next) { return {}; }
 
-        auto value = std::move(this->head->data);
+        auto value = std::move(this->head->next->data);
         this->head = std::move(this->head->next);
 
         return value;
