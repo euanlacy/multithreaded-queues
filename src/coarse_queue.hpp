@@ -14,8 +14,14 @@ private:
     std::deque<T> data;
 public:
     CQueue() {
-        static_assert(Queue<CQueue<T>, T>);
+        /* static_assert(Queue<CQueue<T>, T>); */
     }
+
+    /* template<typename U> */
+    /* void enqueue(U&& payload) { */
+    /*     std::lock_guard<std::mutex> lockGuard(this->mut); */
+    /*     this->data.push_back(std::forward<T>(payload)); */
+    /* } */
 
     void enqueue(T payload) {
         std::lock_guard<std::mutex> lockGuard(this->mut);
@@ -26,7 +32,7 @@ public:
         std::lock_guard<std::mutex> lockGuard(this->mut);
 
         if (!this->data.empty()) {
-            auto ret = this->data.front();
+            auto ret = std::move(this->data.front());
             this->data.pop_front();
             return ret;
         } else {

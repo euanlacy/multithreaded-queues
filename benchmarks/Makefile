@@ -7,8 +7,8 @@ SRCS := ${wildcard *.cpp}
 vpath %.o ${BUILD_PATH}
 vpath % ${BIN_PATH}
 
-all: test_queue
+all: bench_queues
 
-test_queue: test_queue.cpp
+bench_queues: bench_queues.cpp
 	${CXX} ${CPPFLAGS} -o ${BIN_PATH}/$@ $^
 
