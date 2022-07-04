@@ -2,3 +2,10 @@ bin/
 build/
 compile_commands.json
 .cache/
+*.aux
+*.out
+*.bbl
+*.blg
+*.log
+*.pdf
+.gdb_history

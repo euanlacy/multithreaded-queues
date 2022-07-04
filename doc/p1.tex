@@ -1,0 +1,231 @@
+\documentclass{article}
+
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{fancyhdr}
+\usepackage{float}
+\usepackage{caption}
+\usepackage[a4paper]{geometry}
+\usepackage{listings}
+\usepackage{booktabs,tabularx}
+\usepackage{pdfpages}
+\usepackage{natbib}
+\usepackage{url}
+\usepackage{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{5pt}
+
+\pagestyle{fancy}
+\graphicspath{ {./pics/} }
+
+\title{P1 - Concurrent Data Structure Implementations}
+\author{180001964}
+\bibliographystyle{apalike}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+The aim of this practical is to create several different concurrent queue
+implementations, including at least one which makes use of mutex locks, and one
+which is non-blocking. I must then argue that all these implementations are
+memory safe in a concurrent setting, and test the performance of these
+implementations, in several scenarios.
+
+\section{Background Concepts}
+In this section I will, unless otherwise stated, use \textit{thread} to refer to
+any situation where there exist two different operations which can be switched
+between after any instruction the operations carried out, even if they have not yet
+finished. This covers both OS threads, and async tasks. 
+
+When referring to two threads carrying out a set of instructions at the
+\textit{same} time, I mean that the order in which the instructions are executed
+relative to the other thread are not well defined. This refers to both separate
+hardware threads executing simultaneously, and software threads and async tasks
+being preempted.
+
+\subsection{Concurrency}
+\subsubsection{Mutex Locks}
+A mutex lock is a simple way of preventing two threads from accessing the same
+memory location at the \textit{same} time. They work by acting as a flag that
+only one thread can hold. 
+
+\subsubsection{Atomic Operations}
+Atomic operations guarantee the order in which they are executed relative to
+other atomics, even across multiple threads. They also guarantee that a thread
+is not preempted while executing the operation. This means they can be used to
+ensure that shared memory is accessed coherently between multiple threads. In
+C++, these take the shape of atomic types which support operations such as
+\verb|compare_exchange|, which allows a thread to swap items at two memory
+locations in a way that is guaranteed that no other thread can interfere.
+
+\subsubsection{ABA Problem}
+The ABA problem must be considered when using the compare\_exchange atomic
+operations. It refers to the scenario when you are watching a variable to
+monitor for changes, in order to perform some action when a change occurs. If
+the value of the variable when you first check is A, and then when you check
+again is still A you will continue to wait, however you may have missed that in
+the intervening period between checks, another thread changed the value from A
+to B, and then back to A. This is normally not an issue, as the action will just
+be delayed until the next time the variable changes state, however, in lock-free
+data structures, sometimes careful consideration is required to deal with this.
+
+\subsection{Cache Coherency}
+One way in which modern computers increase the speed at which they run processes
+is by making use of the cache. The cache is relatively small amounts of memory,
+usually a few 10s of MB on modern CPUs, stored in the CPU itself. It aims to
+store sections of memory which are used frequently by a process, in order to
+avoid having to routinely fetch memory from RAM, as cache is significantly
+faster for the CPU to access. Programmers aiming to make use of this, in order
+to speed up their programs must be careful to improve the \textit{spatial} and
+\textit{temporal} locality of the memory they are accessing. Data structures and
+algorithms making use of contiguously allocated arrays are often more performant
+than their equivalents making use of linked-lists, even when a linked-list may
+provide better theoretical time-complexity. This is because when traversing a
+linked-list, the address of the next node cannot be known until the current node
+is processed, known as the pointer-chasing problem, in addition adjacent nodes
+in such a list, are often not adjacent in physical memory, as they may be
+dynamically allocated at different times throughout the program. These
+properties of the linked-list limits the effectiveness of hardware prefetchers
+\citep{yang2004tolerating}, resulting in worse performance as mentioned.
+
+\section{Design and Implementation}
+In order to aid with testing and benchmarking multiple implementations of the
+same data structure, I made use of the c++20 feature \textit{concepts}. This
+allowed me to create example programs which could easily be run for all
+implementations, and checked for correctness at compile time, by declaring a
+\verb|Queue| \textit{concept}, which outlines the functions a \verb|Queue| must
+support. Then, by adding a static assert to the default constructor of my queue
+implementations, the compiler checks that the implementation supports all
+required queue operations.
+
+\subsection{Coarse Queue}
+The coarse queue is the simplest concurrent queue implementation, which uses a
+single mutex lock to ensure that only one !thread! can be altering the data
+structure at a given time. This guarantees memory safety, but is not
+particularly concurrent, as although multiple threads can use the same queue,
+any operations on the same queue can not be executed concurrently, requiring one
+thread to wait for another. One potential benefit of this approach, however, is
+that it imposes no requirements on the data structure which backs the queue.
+Allowing for more cache conscious data structures, such as resizeable arrays, to
+be used rather than the linked lists required for the other implementations. In
+many cases, this means that this queue may in fact be more performant, despite
+its lack of true concurrency.
+
+\subsection{Fine Queue}
+The fine queue uses two mutex locks, one for the head of the queue, and another
+for the tail. Unfortunately this does require the backing data structure to be a
+linked list. To see this, consider the case when the underlying array backing
+the queue is full, and a thread wants to enqueue a new element. To do this, the
+array must be reallocated, which may require the entire array be moved in
+memory. If another thread is trying to pop an element at the same time the array
+is being reallocated, a data race occurs, and the element may still be moved to
+the new array, despite being popped.
+
+\subsection{Lock-Free Queue}
+The lock-free queue makes use of atomic operations to
+
+\section{Theoretical Evaluation}
+\subsection{Coarse Queue}
+This queue is trivially thread-safe, as both functions which access the
+underlying data are locked by a single mutex. This means that only one thread
+may be accessing the data of the queue at any one time. Though this is
+thread-safe, it lacks concurrency. I would expect this queue to perform the
+worst in highly concurrent scenarios, with multiple producers and consumers.
+However, since the underlying data structure is more cache-conscious, and the
+method by which thread-safety is achieved is simpler, this queue will probably
+perform the best in instances with only a few producers and consumers.
+
+\subsection{Fine Queue}
+The fine queue is an iterative improvement to concurrency over the coarse queue,
+allowing threads to enqueue, and dequeue concurrently, though multiple
+occurrences of the same operation are not concurrent. This data structure is
+thread-safe as two threads can never perform operations on the same node at any
+given time. In the case of one thread enqueueing, and another dequeueing, the
+dummy node means that they will always be operating on separate nodes, even if
+there are less than 2 elements in the queue. If two threads are performing the
+same operation, the mutex lock ensures that the second thread must wait for the
+first one to finish before touching the shared memory.
+
+\subsection{Lock-Free Queue}
+A major downside to lock-based concurrent data structures, is that if a thread
+is suspended while holding a lock, it prevents other threads from accessing the
+data structure and completing their own operations. This can happen if the
+scheduler preempts a thread in the middle of an enqueue or dequeue operation,
+while it is still holding a mutex. The effects of this may be heightened if the
+scheduler preempts a thread holding a lock in favour of another thread trying to
+hold the same lock, preventing either from doing any work at all, while still
+incurring the cost of context switching. This can be overcome by lock-free
+data structures which rely on atomic operations rather than locks. Although
+these are often slower to process one operation, scheduled threads can always
+make progress, even if other threads are not running. 
+
+\section{Testing and Benchmarking}
+I chose to use the cpp \cite{catch2} framework for testing, as it provides a
+number of macros which make writing test cases and assertions simple across
+multiple similar types. I originally also attempted to use its benchmarking
+functionality, but found it problematic as it does not recreate the data
+structure before each test iteration. Instead I opted to write my own
+benchmarks, using the cpp standard library \verb|high_resolution_clock|, and
+templated functions to reuse code, along with \textit{concepts}, for
+type-safety.
+
+\subsection{Testing}
+I wrote both single-threaded and multi-threaded tests for all my queue types.
+The catch2 framework provides type parameterized tests which allows me to run
+tests across all my different queues with no code duplication. The
+single-threaded tests ensure that basic queue properties are respected for all
+my implementations, and the multi-threaded tests attempt to create conditions
+conducive of race situations and detect when one occurs. It was not particularly
+easy to trigger violations of thread-safety, especially when the queue is used
+with small types like \verb|int|.
+
+My three multi-threaded tests do pass for my thread-safe queues, and fail when
+the single-threaded queue is used, this provides me with some confidence that my
+implementations are correct. They are certainly more thread-safe than the
+standard deque. 
+
+Due to non-thread-safe data structures generating undefined behaviour when
+modified concurrently, the multi-threaded tests tend to fail in a variety of
+unclean ways when using a single-threaded queue. For this reason, the
+single-threaded queue is not tested on these tests by default, instead it must
+be uncommented from the list of types to be used.
+
+\subsection{Benchmarking}
+In addition to the previous queues, I also introduced a \textit{linked coarse
+queue}, which uses a thread-safety mechanism equivalent to the coarse queue,
+while having an underlying data structure of a linked-list, similar to the fine
+queue. This allows me to demonstrate both the performance improvements of the
+concurrent fine queue over a coarse queue, while also demonstrating that in many
+cases the performance of the underlying data structure is a grater factor than
+the concurrency.
+
+\begin{table}
+\centering
+\begin{tabular}{lccccl}
+                                 & \multicolumn{1}{l}{Single-Threaded Queue} & \multicolumn{1}{l}{Coarse Queue} & \multicolumn{1}{l}{Linked Coarse Queue} & \multicolumn{1}{l}{Fine Queue} &   \\
+Enqueue                          & 5ns                                       & 10ns                             & 115ns                                   & 122ns                          &   \\
+Dequeue                          & 2ns                                       & 7ns                              & 78ns                                    & 80ns                           &   \\
+One Producer,\\ One Consumer       & -                                         & 1058ms                           & 5706ms                                  & 2782ms                         &   \\
+Three Producers,\\ Three Consumers & -                                         & 1354ms                           & 7569ms                                  & 2987ms                         &  
+\end{tabular}
+\end{table}
+
+\section{Evaluation and Conclusion}
+From the results it is clear that there is no one best thread-safe queue
+implementation for every possible scenario. Instead when choosing an
+implementation, one must evaluate the needs of the system in which they are
+using it. If the environment is not highly concurrent, then it is likely that
+the best queue is one which uses just a single mutex lock.  
+
+In addition, if the situation requires a queue with only a single producer and
+a single consumer, it is possible to modify the fine queue by removing the locks
+entirely, maintaining thread-safety, and increasing performance.
+
+It is also not enough to rely on tests to verify the thread-safety of your
+data structures.  
+
+\nocite{*}
+\bibliography{references}
+\end{document}

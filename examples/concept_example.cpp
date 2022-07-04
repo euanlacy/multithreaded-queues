@@ -4,6 +4,7 @@
 #include "../src/queue.hpp"
 #include "../src/coarse_queue.hpp"
 #include "../src/fine_queue.hpp"
+#include "../src/lock_free_queue.hpp"
 
 typedef uint32_t u32;
 typedef int32_t  i32;
@@ -26,6 +27,7 @@ void test() {
 }
 
 int main() {
-    /* test<CQueue<u32>>(); */
+    test<CQueue<u32>>();
     test<FQueue<u32>>();
+    /* test<LFQueue<u32>>(); */
 }

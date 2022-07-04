@@ -1,20 +1,24 @@
-#include <tuple>
-#define CATCH_CONFIG_MAIN
 #define CATCH_CONFIG_FAST_COMPILE
 
+#include <tuple>
 #include <cstdint>
 #include <iostream>
 #include <future>
 #include <catch2/catch.hpp>
 
+#include "../src/linked_coarse_queue.hpp"
 #include "../src/coarse_queue.hpp"
 #include "../src/fine_queue.hpp"
+#include "../src/lock_free_queue.hpp"
+#include "../src/single_thread_queue.hpp"
 #include "../src/queue.hpp"
+#include "../src/util.hpp"
 
 template<typename T>
 using QueueTypes = std::tuple<CQueue<T>>;
 
-TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>, FQueue<int>) {
+TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]",
+                   CQueue<int>, LCQueue<int>, FQueue<int>, SFQueue<int>) {
     static_assert(Queue<TestType, int>);
     auto queue = TestType();
 
@@ -28,6 +32,7 @@ TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>, FQueue<int>) 
         queue.enqueue(3);
         auto test = queue.dequeue();
 
+        REQUIRE(test.has_value());
         REQUIRE(*test == 3);
     }
 
@@ -35,7 +40,24 @@ TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>, FQueue<int>) 
         queue.enqueue(14);
 
         auto fourteen = queue.dequeue();
+        REQUIRE(fourteen.has_value());
         REQUIRE(*fourteen == 14);
+
+        auto empty = queue.dequeue();
+        REQUIRE(!empty.has_value());
+    }
+
+    SECTION("Enqueue Enqueue Dequeue Dequeue Dequeue") {
+        queue.enqueue(14);
+        queue.enqueue(25);
+
+        auto fourteen = queue.dequeue();
+        REQUIRE(fourteen.has_value());
+        REQUIRE(*fourteen == 14);
+
+        auto twenty_five = queue.dequeue();
+        REQUIRE(twenty_five.has_value());
+        REQUIRE(*twenty_five == 25);
 
         auto empty = queue.dequeue();
         REQUIRE(!empty.has_value());
@@ -48,57 +70,156 @@ TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]", CQueue<int>, FQueue<int>) 
         queue.enqueue(152);
 
         auto one_five_two = queue.dequeue();
+        REQUIRE(one_five_two.has_value());
         REQUIRE(*one_five_two == 152);
     }
 
-    // Enqueues 100 random numbers in [1, 500), then checks they dequeue in the correct order.
+    SECTION("Destructor works") {
+        auto q = TestType();
+        for (int i = 0; i < 1'000'000; i++) {
+            q.enqueue(i);
+        }
+    }
+
     SECTION("FIFO Ordering") {
-        auto numbers = GENERATE(take(100, random(1, 500)));
+        enqueue_n(queue, 500);
 
-        queue.enqueue(numbers);
-        auto values = queue.dequeue();
+        for (int i = 0; i < 500; i++) {
+            auto value = queue.dequeue();
+            REQUIRE(value.has_value());
+            REQUIRE(*value == i);
+        }
 
-        REQUIRE(*values == numbers);
+        auto empty = queue.dequeue();
+        REQUIRE(!empty.has_value());
     }
 }
 
-TEMPLATE_TEST_CASE("Many Threads", "[int]", CQueue<int>, FQueue<int>) {
+// Both of the multithreaded tests fail in unpredictable ways with the single-threaded queue.
+
+TEMPLATE_TEST_CASE("One Producer, One Consumer", "[yeet]", CQueue<int>, LCQueue<int>, FQueue<int>/*, SFQueue<int>*/) {
     auto queue = TestType();
 
-    SECTION("One Producer, One Consumer") {
-        auto producer = std::async([&queue]{
-            for (int i = 1; i <= 100; i++) {
-                queue.enqueue(i);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-        });
+    // This test has one producer thread which enqueues every int from 0..1'000'000 in order,
+    // then it requires that the consumer recieves them in order
+    auto producer = std::thread([&queue] {enqueue_n(queue, 1'000'000);});
 
-        auto consumer = std::async([&queue]{
-            int num_dequeued = 0; 
-            while (num_dequeued != 100) {
-                auto value = queue.dequeue();
-                if (value) {
-                    REQUIRE(*value == ++num_dequeued);
+    std::promise<bool> p; 
+    std::future<bool> succeed = p.get_future(); 
+
+    auto consumer = std::thread([&queue, &p]{
+        int num_dequeued = 0; 
+        while (num_dequeued != 1'000'000) {
+            auto value = queue.dequeue();
+            if (value) {
+                if (*value != num_dequeued++) {
+                    p.set_value(false);
+                    return;
                 }
             }
-        });
+        }
 
-        producer.get();
-        consumer.get();
+        // There are no more elements in the queue
+        p.set_value(!queue.dequeue());
+    });
+
+    consumer.join();
+    producer.join();
+
+    CHECK(succeed.get());
+}
+
+TEMPLATE_TEST_CASE("Two Producers, One Consumer", "[argh]", CQueue<int>, LCQueue<int>, FQueue<int>/*, SFQueue<int>*/) {
+    auto queue = TestType();
+
+    // This test creates two threads that both enqueue every int from 0..1'000'000, in order
+    // It then requires that the consumer recieves two of every int.
+    const int N = 1'000'000;
+    auto consumer = std::thread([&queue] {
+        int values[N] = {0};
+        int total = 0;
+        while (total < N * 2) {
+            auto value = queue.dequeue();
+            if (value) {
+                values[*value]++;
+                REQUIRE(values[*value] <= 2);
+                total++;
+            }
+        }
+
+        REQUIRE(total == N * 2);
+        for (auto num : values) {
+            REQUIRE(num == 2);
+        }
+    });
+
+    auto thread1  = std::thread([&queue] { enqueue_n(queue, N); });
+    auto thread2  = std::thread([&queue] { enqueue_n(queue, N); });
+
+    consumer.join(), thread1.join(), thread2.join();
+}
+
+
+template <class Q>
+requires Queue<Q, int>
+std::vector<int> dequeue_test(Q& queue, int n) {
+    std::vector<int> dequeued;
+    int n_dequeued = 0;
+
+    while (n_dequeued < n) {
+        auto value = queue.dequeue();
+        if (value) {
+            n_dequeued++;
+            dequeued.push_back(*value);
+        }
     }
 
-    auto fut  = std::async([&queue]{ queue.enqueue(3); });
-    auto fut1 = std::async([&queue]{ queue.enqueue(20); });
-    auto fut2 = std::async([&queue]{ queue.enqueue(12); });
+    return dequeued;
+}
 
-    auto fut3 = std::async([&queue]{ return *queue.dequeue(); });
-    auto fut4 = std::async([&queue]{ return *queue.dequeue(); });
-    auto fut5 = std::async([&queue]{ return *queue.dequeue(); });
 
-    fut.get(), fut1.get(), fut2.get();
+TEMPLATE_TEST_CASE("Two Producers, Two Consumers", "[argh]", CQueue<int>, LCQueue<int>, FQueue<int>/*, SFQueue<int>*/) {
+    auto queue = TestType();
 
-    std::cout << fut3.get() << std::endl;
-    std::cout << fut4.get() << std::endl;
-    std::cout << fut5.get() << std::endl;
+    // This test creates two threads that both enqueue every int from 0..1'000'000, in order
+    // It then creates two consumers which return the values they dequeded, then checking
+    // that all the ints have been deqeueued.
+    const int N = 1'000'000;
+
+    std::promise<std::vector<int>> first_half; 
+    std::promise<std::vector<int>> second_half; 
+
+    std::future<std::vector<int>> first_fut = first_half.get_future(); 
+    std::future<std::vector<int>> second_fut = second_half.get_future(); 
+
+    auto consumer1 = std::thread([&queue, &first_half] {
+        auto values = dequeue_test(queue, N);
+        first_half.set_value(values);
+    });
+
+    auto consumer2 = std::thread([&queue, &second_half] {
+        auto values = dequeue_test(queue, N);
+        second_half.set_value(values);
+    });
+
+    auto thread1  = std::thread([&queue] { enqueue_n(queue, N); });
+    auto thread2  = std::thread([&queue] { enqueue_n(queue, N); });
+
+    consumer1.join(), consumer2.join(), thread1.join(), thread2.join();
+
+    auto values = first_fut.get();
+    auto second = second_fut.get();
+    values.insert(values.end(), second.begin(), second.end());
+
+    int counts[N] = {0};
+    for (auto value : values) {
+        counts[value]++;
+    }
+
+    int i = 0;
+    for (auto count : counts) {
+        REQUIRE(count == 2);
+        i++;
+    }
 }
 

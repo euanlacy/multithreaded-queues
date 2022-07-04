@@ -1,20 +1,20 @@
-#ifndef COARSE_QUEUE_H
-#define COARSE_QUEUE_H
+#ifndef LINKED_COARSE_QUEUE_H
+#define LINKED_COARSE_QUEUE_H
 
-#include <deque>
+#include <list>
 #include <mutex>
 #include <optional>
 
 #include "queue.hpp"
 
 template<typename T>
-class CQueue {
+class LCQueue {
 private:
     std::mutex mut;
-    std::deque<T> data;
+    std::list<T> data;
 public:
-    CQueue() {
-        static_assert(Queue<CQueue<T>, T>);
+    LCQueue() {
+        static_assert(Queue<LCQueue<T>, T>);
     }
 
     void enqueue(T payload) {

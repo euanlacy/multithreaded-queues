@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <iostream>
 
 #include "queue.hpp"
 
@@ -25,6 +26,12 @@ public:
         static_assert(Queue<FQueue<T>, T>);
         this->head = std::make_unique<Node>(T {});
         this->tail = this->head.get();
+    }
+
+    ~FQueue() {
+        // Unique ptr destructor stack overflows for big lists
+        // https://gcc.gcc.gnu.narkive.com/z4arPhYO/segmentation-fault-with-unique-ptr
+        while (this->dequeue());
     }
 
     void enqueue(T payload) {

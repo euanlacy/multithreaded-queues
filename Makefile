@@ -1,7 +1,7 @@
 BUILD_DIR := ./build/.
 BIN_DIR := ./bin/.
-CXX := g++
-CPPFLAGS := --std=c++20 -O3
+export CXX := g++
+export CXXFLAGS := --std=c++20 -O3 -Wall -Wextra
 
 vpath %.o ${BUILD_DIR}
 

@@ -1,5 +1,3 @@
-CXX = g++
-CPPFLAGS = --std=c++20 -O3 -Wall -Wextra
 BUILD_PATH ?= .
 BIN_PATH ?= .
 
@@ -7,8 +5,8 @@ SRCS := ${wildcard *.cpp}
 vpath %.o ${BUILD_PATH}
 vpath % ${BIN_PATH}
 
-all: test_queue
+all: test_queues
 
-test_queue: test_queue.cpp
-	${CXX} ${CPPFLAGS} -o ${BIN_PATH}/$@ $^
+test_queues: test_queue.cpp catch.o
+	${CXX} ${CXXFLAGS} -o ${BIN_PATH}/$@ $^
 
