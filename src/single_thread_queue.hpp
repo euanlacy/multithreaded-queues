@@ -9,12 +9,12 @@
 #include "queue.hpp"
 
 template<typename T>
-class SFQueue {
+class STQueue {
 private:
     std::deque<T> data;
 public:
-    SFQueue() {
-        static_assert(Queue<SFQueue<T>, T>);
+    STQueue() {
+        static_assert(Queue<STQueue<T>, T>);
     }
 
     void enqueue(T payload) {

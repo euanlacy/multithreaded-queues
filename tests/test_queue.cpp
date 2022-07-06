@@ -19,7 +19,7 @@ struct BigType {
 };
 
 using ALL_QUEUES =
-    std::tuple<CQueue<int>, LCQueue<int>, FQueue<int>, SFQueue<int>, LFQueue<int>>;
+    std::tuple<CQueue<int>, LCQueue<int>, FQueue<int>, STQueue<int>, LFQueue<int>>;
 
 template<typename T>
 using THREAD_SAFE_QUEUES =

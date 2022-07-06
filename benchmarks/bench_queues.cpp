@@ -57,8 +57,8 @@ TEST_CASE("Single Threaded Tests", "[int]") {
     std::cout << "Benchmark Enqueue" << std::endl;
     std::cout << "--------------------------------" << std::endl;
 
-    std::cout << "SFQueue" << std::endl;
-    bench_enqueue<SFQueue<int>>();
+    std::cout << "STQueue" << std::endl;
+    bench_enqueue<STQueue<int>>();
 
     std::cout << std::endl << "LCQueue" << std::endl;
     bench_enqueue<LCQueue<int>>();
@@ -78,8 +78,8 @@ TEST_CASE("Single Threaded Tests", "[int]") {
     std::cout << "Benchmark Dequeue" << std::endl;
     std::cout << "--------------------------------" << std::endl;
 
-    std::cout << "SFQueue" << std::endl;
-    bench_dequeue<SFQueue<int>>();
+    std::cout << "STQueue" << std::endl;
+    bench_dequeue<STQueue<int>>();
 
     std::cout << std::endl << "LCQueue" << std::endl;
     bench_dequeue<LCQueue<int>>();

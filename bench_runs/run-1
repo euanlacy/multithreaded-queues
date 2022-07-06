@@ -1,0 +1,115 @@
+--------------------------------
+Benchmark Enqueue
+--------------------------------
+SFQueue
+took 30727µs with an avg of 3ns
+
+LCQueue
+took 335440µs with an avg of 33ns
+
+CQueue
+took 128983µs with an avg of 12ns
+
+FQueue
+took 325599µs with an avg of 32ns
+
+LFQueue
+took 106903µs with an avg of 10ns
+
+--------------------------------
+Benchmark Dequeue
+--------------------------------
+SFQueue
+took 15359µs with an avg of 1ns
+
+LCQueue
+took 126170µs with an avg of 12ns
+
+CQueue
+took 62354µs with an avg of 6ns
+
+FQueue
+took 153439µs with an avg of 15ns
+
+LFQueue
+took 171674µs with an avg of 17ns
+
+-------------------------------------
+Benchmark One Producer, One consumer
+-------------------------------------
+CQueue
+took 3014ms
+
+LCQueue
+took 1624ms
+
+FQueue
+took 3008ms
+
+LFQueue
+took 1603ms
+
+--------------------------------
+Benchmark 5 Producers, One Consumer
+--------------------------------
+CQueue
+took 985ms
+
+LCQueue
+took 1766ms
+
+FQueue
+took 1612ms
+
+LFQueue
+took 406ms
+
+--------------------------------
+Benchmark 1 Producer, 5 Consumers
+--------------------------------
+CQueue
+took 1026ms
+
+LCQueue
+took 1800ms
+
+FQueue
+took 1603ms
+
+LFQueue
+took 387ms
+
+------------------------------------------
+Benchmark two Producers, two Consumers
+------------------------------------------
+CQueue
+took 1325ms
+
+LCQueue
+took 2790ms
+
+FQueue
+took 2183ms
+
+LFQueue
+took 915ms
+
+------------------------------------------
+Benchmark three Producers, three Consumer
+------------------------------------------
+CQueue
+took 1561ms
+
+LCQueue
+took 4129ms
+
+FQueue
+took 2837ms
+
+LFQueue
+took 782ms
+
+===============================================================================
+test cases: 2 | 2 passed
+assertions: - none -
+

@@ -12,6 +12,7 @@
 \usepackage{natbib}
 \usepackage{url}
 \usepackage{hyperref}
+\usepackage{multirow}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{5pt}
@@ -297,13 +298,18 @@ cores clocked at 3.6Ghz, and 16GiB of DDR4 with a frequency of 2133Mhz.
 
 \begin{table}[h]
 \centering
-\begin{tabular}{lccccl}
-                                 & \multicolumn{1}{l}{Single-Threaded Queue} & \multicolumn{1}{l}{Coarse Queue} & \multicolumn{1}{l}{Linked Coarse Queue} & \multicolumn{1}{l}{Fine Queue} &   \\
-Enqueue                          & 5ns                                       & 10ns                             & 115ns                                   & 122ns                          &   \\
-Dequeue                          & 2ns                                       & 7ns                              & 78ns                                    & 80ns                           &   \\
-One Producer,\\ One Consumer       & -                                         & 1058ms                           & 5706ms                                  & 2782ms                         &   \\
-Three Producers,\\ Three Consumers & -                                         & 1354ms                           & 7569ms                                  & 2987ms                         &  
+\begin{tabular}{c|cccc}
+\hline
+\multirow{2}{*}{Queues} & \multicolumn{2}{c}{Enqueue} & \multicolumn{2}{c}{Dequeue} \\
+                        & mean        & std dev       & mean        & std dev       \\ \hline
+Single Threaded         & 2ns         & 0.5           & 1ns         & 0.0           \\
+Linked Coarse           & 32ns        & 0.5           & 12ns        & 0.0           \\
+Coarse Grain            & 12ns        & 0.5           & 6ns         & 0.0           \\
+Fine Grain              & 33ns        & 2.8           & 15ns        & 0.0           \\
+Lock-Free               & 10ns        & 0.0           & 17ns        & 2.1          
 \end{tabular}
+\caption{Single Threaded Benchmarks}
+\label{tab:single-threaded}
 \end{table}
 
 \section{Evaluation and Conclusion}
