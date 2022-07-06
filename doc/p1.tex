@@ -49,13 +49,14 @@ which may be preempted.
 \subsubsection{Mutex Locks}
 A mutex lock is a simple way of preventing two threads from accessing the same
 memory location at the \textit{same} time. They work by acting as a flag that
-only one thread can hold, and the thread must wait until it holds the flag to
+only one thread can hold, and a thread must wait until it holds the flag to
 be able to perform operations on the shared memory.
 
 \subsubsection{Atomic Operations}
 Atomic operations guarantee the order in which they are executed relative to
 other atomics, even across multiple threads. They also guarantee that a thread
-is not preempted while executing the operation. This means they can be used to
+is not preempted while executing the operation, and that no other thread can
+access an atomic value as it is being changed. This means they can be used to
 ensure that shared memory is accessed coherently between multiple threads. In
 C++, these take the shape of atomic types which support operations such as
 \verb|compare_exchange|, which allows a thread to swap items at two memory
@@ -112,19 +113,23 @@ that it imposes no requirements on the data structure which backs the queue.
 This allows for more cache conscious data structures, such as contiguous arrays,
 to be used rather than the linked lists required for the other implementations.
 In many cases, this means that this queue may in fact be more performant,
-despite its lack of true concurrency.
-%TODO: look at this
+despite its lack of true concurrency. I use the cpp \verb|std::deque| as the
+backing data structure. The \verb|std::deque| behaves like a doubly linked list,
+but with better cache performance as it is comprised of multiple linked
+contiguous arrays.
 
 \subsection{Fine Queue}
 % Redo
 The fine queue uses two mutex locks, one for the head of the queue, and another
-for the tail. Unfortunately this does require the backing data structure to be a
-linked list. To see this, consider the case when the underlying array backing
-the queue is full, and a thread wants to enqueue a new element. To do this, the
-array must be reallocated, which may require the entire array be moved in
-memory. If another thread is trying to pop an element at the same time the array
-is being reallocated, a data race occurs, and the element may still be moved to
-the new array, despite being popped.
+for the tail. The \verb|std::deque| does not expose enough of its internals
+through its api, for thread safety to be easily reasoned about when not locking
+the entire data structure. For this reason, I chose to implement this queue
+using a linked-list which is controlled entirely by the class. The downside of
+this approach, is that linked-lists are generally performant than similar data
+structures using contiguous arrays due to their cache behaviour. It may be
+possible to implement from scratch a data structure similar to a deque which can
+be made thread-safe using two locks, but this would be considerably harder, as
+the deque is a more complicated data structure.
 
 \subsection{Lock-Free Queue}
 The lock-free queue has a similar design to the finely locked queue, using a
@@ -132,11 +137,12 @@ linked list with a dummy node to allow threads to enqueue and dequeue safely at
 the same time. In order to avoid the need for mutex locks to protect against
 threads trying to perform the same operation at the same time, atomic operations
 are used instead to control the order in which threads access and mutate the
-head and tail of the queue.
+pointers to nodes of the queue. They also guarantee that writes cannot happen at
+the same time as other write or read operations.
 
 The use of atomic operations makes it difficult to reclaim the memory being used
 by the nodes when they are dequeued. This is because even if the head has been
-dequeued by one node, another thread also trying to dequeue, might still be
+dequeued by one node, another thread also trying to dequeue might still be
 holding it, and will not have advanced to the next node until it manages to
 carry out a \verb|compare_exchange| operation. This can be remedied in a number
 of ways, such as through the use of hazard pointers \citep{michael2004hazard},
@@ -267,7 +273,10 @@ in \verb|dequeue| has occurred, which seems extremely unlikely, though if this
 value is cached then problems might occur. Despite not observing any problems in
 my tests, I chose to make the change for correctness. 
 
-There was also a similar problem in my lock-free queue implementation, 
+There was also a similar problem in my lock-free queue implementation,
+converting the next node pointer in the \verb|Node| struct to also be atomic
+and carefully choosing the memory ordering for the atomic operations fixed this
+issue.
 
 \subsection{Benchmarking}
 In addition to the previous queues, I also introduced a \textit{linked coarse
@@ -277,6 +286,14 @@ queue. This allows me to demonstrate both the performance improvements of the
 concurrent fine queue over a coarse queue, while also demonstrating that in many
 cases the performance of the underlying data structure is a grater factor than
 the concurrency.
+
+In an effort to increase the accuracy of the results, the benchmarks are carried
+out with simultaneous multithreading disabled, and with a minimum number of
+background processes, including no active desktop environment or windowing
+server.
+
+The benchmarks were carried out on a desktop pc with a Ryzen 5 2600x CPU with 6
+cores clocked at 3.6Ghz, and 16GiB of DDR4 with a frequency of 2133Mhz.
 
 \begin{table}[h]
 \centering
@@ -295,10 +312,6 @@ implementation for every possible scenario. Instead, when choosing an
 implementation, one must evaluate the needs of the system in which they are
 using it. If the environment is not highly concurrent, then it is likely that
 the best queue is one which uses just a single mutex lock.  
-
-In addition, if the situation requires a queue with only a single producer and
-a single consumer, it is possible to modify the fine queue by removing the locks
-entirely, maintaining thread-safety, and increasing performance.
 
 It is also not enough to rely on tests to verify the thread-safety of your
 data structures, as it is difficult to reliably trigger and detect unsafe

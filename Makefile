@@ -1,8 +1,8 @@
 BUILD_DIR := ./build/.
 BIN_DIR := ./bin/.
 export CXX := g++
-export CXXFLAGS := --std=c++20 -fsanitize=thread -g -O3 -Wall -Wextra
-# export CXXFLAGS := --std=c++20 -O3 -Wall -Wextra
+# export CXXFLAGS := --std=c++20 -fsanitize=thread -g -O3 -Wall -Wextra
+export CXXFLAGS := --std=c++20 -g -O3 -Wall -Wextra
 
 vpath %.o ${BUILD_DIR}
 

@@ -142,6 +142,56 @@ void bench_five_one() {
 
 template <class Q>
 requires Queue<Q, int>
+void bench_one_five() {
+    Q queue = Q();
+    auto start = std::chrono::high_resolution_clock::now();
+
+    auto producer   = std::thread([&queue] { dequeue_n(queue, 5'000'000); });
+    auto consumer1  = std::thread([&queue] { enqueue_n(queue, 1'000'000); });
+    auto consumer2  = std::thread([&queue] { enqueue_n(queue, 1'000'000); });
+    auto consumer3  = std::thread([&queue] { enqueue_n(queue, 1'000'000); });
+    auto consumer4  = std::thread([&queue] { enqueue_n(queue, 1'000'000); });
+    auto consumer5  = std::thread([&queue] { enqueue_n(queue, 1'000'000); });
+
+    producer.join();
+    consumer1.join();
+    consumer2.join();
+    consumer3.join();
+    consumer4.join();
+    consumer5.join();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = end - start;
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed);
+    std::cout << "took " << elapsed_ms << std::endl;
+}
+
+template <class Q>
+requires Queue<Q, int>
+void bench_two_two() {
+    Q queue = Q();
+    auto start = std::chrono::high_resolution_clock::now();
+
+    auto consumer1 = std::thread([&queue] { dequeue_n(queue, 3'000'000); });
+    auto consumer2 = std::thread([&queue] { dequeue_n(queue, 3'000'000); });
+
+    auto producer1 = std::thread([&queue] { enqueue_n(queue, 3'000'000); });
+    auto producer2 = std::thread([&queue] { enqueue_n(queue, 3'000'000); });
+
+    consumer1.join();
+    consumer2.join();
+
+    producer1.join();
+    producer2.join();
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = end - start;
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed);
+    std::cout << "took " << elapsed_ms << std::endl;
+}
+
+template <class Q>
+requires Queue<Q, int>
 void bench_three_three() {
     Q queue = Q();
     auto start = std::chrono::high_resolution_clock::now();
@@ -202,6 +252,42 @@ TEST_CASE("Many Threads") {
 
     std::cout << std::endl << "LFQueue" << std::endl;
     bench_five_one<LFQueue<int>>();
+
+    std::cout << std::endl;
+
+    std::cout << "--------------------------------" << std::endl;
+    std::cout << "Benchmark 1 Producer, 5 Consumers" << std::endl;
+    std::cout << "--------------------------------" << std::endl;
+
+    std::cout << "CQueue" << std::endl;
+    bench_one_five<CQueue<int>>();
+
+    std::cout << std::endl << "LCQueue" << std::endl;
+    bench_one_five<LCQueue<int>>();
+
+    std::cout << std::endl << "FQueue" << std::endl;
+    bench_one_five<FQueue<int>>();
+
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_one_five<LFQueue<int>>();
+
+    std::cout << std::endl;
+
+    std::cout << "------------------------------------------" << std::endl;
+    std::cout << "Benchmark two Producers, two Consumers" << std::endl;
+    std::cout << "------------------------------------------" << std::endl;
+
+    std::cout << "CQueue" << std::endl;
+    bench_two_two<CQueue<int>>();
+
+    std::cout << std::endl << "LCQueue" << std::endl;
+    bench_two_two<LCQueue<int>>();
+
+    std::cout << std::endl << "FQueue" << std::endl;
+    bench_two_two<FQueue<int>>();
+
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_two_two<LFQueue<int>>();
 
     std::cout << std::endl;
 

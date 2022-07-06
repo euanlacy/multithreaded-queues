@@ -12,8 +12,8 @@ class LFQueue {
 private:
     struct Node {
         T data;
+        // Has to be atomic for same reasong FQueue::dequeue holds both locks
         std::atomic<Node*> next;
-        /* Node* next; */
         Node(T _data): data(std::move(_data)), next(nullptr) {};
     };
     std::atomic<Node*> head;
@@ -39,7 +39,7 @@ public:
         // then they will be lost here.
         while (this->original_head) {
             Node* old = this->original_head;
-            this->original_head = old->next;
+            this->original_head = old->next.load(std::memory_order_acquire);
             delete old;
         }
     }
@@ -48,7 +48,7 @@ public:
         Node* new_node = new Node(std::move(payload));
 
         // This node always exists, even if the queue is empty
-        Node* old_tail = this->tail.load();
+        Node* old_tail = this->tail.load(std::memory_order_acquire);
 
         // Expect it to be the old_tail, we want it to be the new_node
         // if it is some other value, then old_tail will become that value,
@@ -59,28 +59,36 @@ public:
 
         // Despite being enqueued and ready for more threads to enqueue,
         // the value can not be dequeued until this operation finishes. 
-        /* old_tail->next = new_node; */
         old_tail->next.store(new_node, std::memory_order_release);
     }
 
-    //TODO: Something is fucked probably the memory ordering on the atomics
-    std::optional<T> dequeue() {
-        // This does not consider the aba problem
+    // https://en.cppreference.com/w/cpp/atomic/memory_order
+    // Atomics ordering:
+    // 1. Acquire the old head
+    // 2. Acquire the next ptr from the old head
+    // 3. compare_exchange head with old_head and next (acq_rel)
+    // 3. If next exists, return the data in the node
 
+    std::optional<T> dequeue() {
         // This node always exists, even if the queue is empty
-        Node* old_head = head.load(std::memory_order_relaxed);
+        Node* old_head = head.load(std::memory_order_acquire);
 
         // While the queue is not empty, and the head is not the next node, try to make the
         // head the next node.
         // NOTE: The old head will never be free'd, hazard pointers or garbage collection,
         //       could be used to remedy, but GC is generally blocking which would somewhat
         //       ruin the point of a lock-free queue.
-        while (old_head->next && !this->head.compare_exchange_weak(old_head, old_head->next, std::memory_order_acq_rel));
+        // We don't have to worry about the ABA problem as memory is never reused and,
+        // the pointer to each node is therefore unique.
+        Node* next;
+        while (
+            (next = old_head->next.load(std::memory_order_acquire))
+            && !this->head.compare_exchange_weak(old_head, next, std::memory_order_acq_rel)
+        );
 
         // If the queue is not empty return the data from the "popped" node
-        auto node = old_head->next.load(std::memory_order_acquire);
-        if (node) {
-            T& data = node->data;
+        if (next) {
+            T& data = next->data;
             return std::move(data);
         }
 

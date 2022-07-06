@@ -19,11 +19,11 @@ requires Queue<Q, int>
 void test() {
     Q queue = Q();
 
-    auto producer1 = std::thread([&queue] {enqueue_n(queue, 10);});
-    auto producer2 = std::thread([&queue] {enqueue_n(queue, 10);});
+    auto producer1 = std::thread([&queue] {enqueue_n(queue, 1000);});
+    auto producer2 = std::thread([&queue] {enqueue_n(queue, 1000);});
 
-    auto consumer1 = std::thread([&queue] {dequeue_n(queue, 10);});
-    auto consumer2 = std::thread([&queue] {dequeue_n(queue, 10);});
+    auto consumer1 = std::thread([&queue] {dequeue_n(queue, 1000);});
+    auto consumer2 = std::thread([&queue] {dequeue_n(queue, 1000);});
 
     producer1.join();
     producer2.join();
@@ -32,9 +32,13 @@ void test() {
     consumer2.join();
 }
 
+// This program is useful to test and inspect thread safety using tools
+// like -fsanitize=thread, valgrind --tool=drd, and valgrind --tool=hellgrind
+// note: these tools are neither absolute guarantees of thread-saftey or the
+// lack of thread-safety.
 int main() {
-    /* test<CQueue<int>>(); */
-    /* test<LCQueue<int>>(); */
-    /* test<FQueue<int>>(); */
+    test<CQueue<int>>();
+    test<LCQueue<int>>();
+    test<FQueue<int>>();
     test<LFQueue<int>>();
 }
