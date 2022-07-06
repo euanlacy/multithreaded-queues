@@ -1,7 +1,8 @@
 BUILD_DIR := ./build/.
 BIN_DIR := ./bin/.
 export CXX := g++
-export CXXFLAGS := --std=c++20 -O3 -Wall -Wextra
+export CXXFLAGS := --std=c++20 -fsanitize=thread -g -O3 -Wall -Wextra
+# export CXXFLAGS := --std=c++20 -O3 -Wall -Wextra
 
 vpath %.o ${BUILD_DIR}
 
@@ -27,7 +28,10 @@ examples: export BIN_PATH = ../${BIN_DIR}
 examples: compile
 	cd examples && ${MAKE}
 
-.PHONY: all test clean compile
+doc:
+	cd doc && ${MAKE}
+
+.PHONY: all test clean compile doc
 
 clean:
 	rm -r ${BUILD_DIR} ${BIN_DIR}

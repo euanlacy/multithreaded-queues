@@ -8,7 +8,7 @@ vpath %.o ${BUILD_PATH}
 all: ${OBJS}
 
 %.o: %.cpp
-	${CCX} ${CXXFLAGS} -c -o ${BUILD_PATH}/$@ $^
+	${CXX} ${CXXFLAGS} -c -o ${BUILD_PATH}/$@ $^
 
 .PHONY: clean
 clean:

@@ -4,6 +4,7 @@
 #include <deque>
 #include <mutex>
 #include <optional>
+#include <concepts>
 
 #include "queue.hpp"
 

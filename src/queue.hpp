@@ -6,7 +6,7 @@
 
 template<class Q, typename P>
 concept Queue = requires(Q queue, P payload) {
-    queue.enqueue(payload);
+    queue.enqueue(std::move(payload));
     { queue.dequeue() } -> std::same_as<std::optional<P>>;
     { Q() } -> std::same_as<Q>;
 };

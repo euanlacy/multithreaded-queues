@@ -14,11 +14,18 @@
 #include "../src/queue.hpp"
 #include "../src/util.hpp"
 
-template<typename T>
-using QueueTypes = std::tuple<CQueue<T>>;
+struct BigType {
+    int array[1024];
+};
 
-TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]",
-                   CQueue<int>, LCQueue<int>, FQueue<int>, SFQueue<int>) {
+using ALL_QUEUES =
+    std::tuple<CQueue<int>, LCQueue<int>, FQueue<int>, SFQueue<int>, LFQueue<int>>;
+
+template<typename T>
+using THREAD_SAFE_QUEUES =
+    std::tuple<CQueue<T>, LCQueue<T>, FQueue<T>, LFQueue<T>>;
+
+TEMPLATE_LIST_TEST_CASE("Single Threaded Tests", "[single]", ALL_QUEUES) {
     static_assert(Queue<TestType, int>);
     auto queue = TestType();
 
@@ -95,9 +102,9 @@ TEMPLATE_TEST_CASE("Single Threaded Tests", "[ints]",
     }
 }
 
-// Both of the multithreaded tests fail in unpredictable ways with the single-threaded queue.
+// All of the multithreaded tests fail in unpredictable ways with the single-threaded queue.
 
-TEMPLATE_TEST_CASE("One Producer, One Consumer", "[yeet]", CQueue<int>, LCQueue<int>, FQueue<int>/*, SFQueue<int>*/) {
+TEMPLATE_LIST_TEST_CASE("One Producer, One Consumer", "[multi]", THREAD_SAFE_QUEUES<int>) {
     auto queue = TestType();
 
     // This test has one producer thread which enqueues every int from 0..1'000'000 in order,
@@ -129,7 +136,7 @@ TEMPLATE_TEST_CASE("One Producer, One Consumer", "[yeet]", CQueue<int>, LCQueue<
     CHECK(succeed.get());
 }
 
-TEMPLATE_TEST_CASE("Two Producers, One Consumer", "[argh]", CQueue<int>, LCQueue<int>, FQueue<int>/*, SFQueue<int>*/) {
+TEMPLATE_LIST_TEST_CASE("Two Producers, One Consumer", "[multi]", THREAD_SAFE_QUEUES<int>) {
     auto queue = TestType();
 
     // This test creates two threads that both enqueue every int from 0..1'000'000, in order
@@ -160,10 +167,10 @@ TEMPLATE_TEST_CASE("Two Producers, One Consumer", "[argh]", CQueue<int>, LCQueue
 }
 
 
-template <class Q>
-requires Queue<Q, int>
-std::vector<int> dequeue_test(Q& queue, int n) {
-    std::vector<int> dequeued;
+template <class Q, typename T>
+requires Queue<Q, T>
+std::vector<T> dequeue_test(Q& queue, int n) {
+    std::vector<T> dequeued;
     int n_dequeued = 0;
 
     while (n_dequeued < n) {
@@ -177,8 +184,16 @@ std::vector<int> dequeue_test(Q& queue, int n) {
     return dequeued;
 }
 
+template <class Q, typename T>
+requires Queue<Q, T>
+void enqueue_test(Q& queue, int n) {
+    for (int i = 0; i < n; i++) {
+        queue.enqueue(T {i} );
+    }
+}
 
-TEMPLATE_TEST_CASE("Two Producers, Two Consumers", "[argh]", CQueue<int>, LCQueue<int>, FQueue<int>/*, SFQueue<int>*/) {
+
+TEMPLATE_LIST_TEST_CASE("Two Producers, Two Consumers", "[multi]", THREAD_SAFE_QUEUES<int>) {
     auto queue = TestType();
 
     // This test creates two threads that both enqueue every int from 0..1'000'000, in order
@@ -193,12 +208,12 @@ TEMPLATE_TEST_CASE("Two Producers, Two Consumers", "[argh]", CQueue<int>, LCQueu
     std::future<std::vector<int>> second_fut = second_half.get_future(); 
 
     auto consumer1 = std::thread([&queue, &first_half] {
-        auto values = dequeue_test(queue, N);
+        auto values = dequeue_test<TestType, int>(queue, N);
         first_half.set_value(values);
     });
 
     auto consumer2 = std::thread([&queue, &second_half] {
-        auto values = dequeue_test(queue, N);
+        auto values = dequeue_test<TestType, int>(queue, N);
         second_half.set_value(values);
     });
 
@@ -214,6 +229,51 @@ TEMPLATE_TEST_CASE("Two Producers, Two Consumers", "[argh]", CQueue<int>, LCQueu
     int counts[N] = {0};
     for (auto value : values) {
         counts[value]++;
+    }
+
+    int i = 0;
+    for (auto count : counts) {
+        REQUIRE(count == 2);
+        i++;
+    }
+}
+
+TEMPLATE_LIST_TEST_CASE("Big test", "[multi]", THREAD_SAFE_QUEUES<BigType>) {
+    auto queue = TestType();
+
+    // This test creates two threads that both enqueue every int from 0..1'000'000, in order
+    // It then creates two consumers which return the values they dequeded, then checking
+    // that all the ints have been deqeueued.
+    const int N = 1'000;
+
+    std::promise<std::vector<BigType>> first_half; 
+    std::promise<std::vector<BigType>> second_half; 
+
+    std::future<std::vector<BigType>> first_fut = first_half.get_future(); 
+    std::future<std::vector<BigType>> second_fut = second_half.get_future(); 
+
+    auto consumer1 = std::thread([&queue, &first_half] {
+        auto values = dequeue_test<TestType, BigType>(queue, N);
+        first_half.set_value(values);
+    });
+
+    auto consumer2 = std::thread([&queue, &second_half] {
+        auto values = dequeue_test<TestType, BigType>(queue, N);
+        second_half.set_value(values);
+    });
+
+    auto thread1 = std::thread([&queue] { enqueue_test<TestType, BigType>(queue, N); });
+    auto thread2 = std::thread([&queue] { enqueue_test<TestType, BigType>(queue, N); });
+
+    consumer1.join(), consumer2.join(), thread1.join(), thread2.join();
+
+    auto values = first_fut.get();
+    auto second = second_fut.get();
+    values.insert(values.end(), second.begin(), second.end());
+
+    int counts[N] = {0};
+    for (auto value : values) {
+        counts[value.array[0]]++;
     }
 
     int i = 0;

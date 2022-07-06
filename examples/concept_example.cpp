@@ -17,7 +17,7 @@ struct Point {
 template <class Q>
 requires Queue<Q, u32>
 void test() {
-    auto queue = Q();
+    Q queue = Q();
 
     queue.enqueue(5);
     queue.enqueue(3);
@@ -29,5 +29,5 @@ void test() {
 int main() {
     test<CQueue<u32>>();
     test<FQueue<u32>>();
-    /* test<LFQueue<u32>>(); */
+    test<LFQueue<u32>>();
 }

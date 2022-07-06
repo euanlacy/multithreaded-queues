@@ -1,3 +1,8 @@
+#ifndef UTIL_HPP
+#define UTIL_HPP
+
+#include <concepts>
+
 #include "queue.hpp"
 
 template <class Q>
@@ -19,3 +24,4 @@ void dequeue_n(Q& queue, int n) {
     }
 }
 
+#endif

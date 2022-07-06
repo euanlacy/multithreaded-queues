@@ -1,20 +1,20 @@
 #define CATCH_CONFIG_FAST_COMPILE
 #define CATCH_CONFIG_ENABLE_BENCHMARKING
 
-#include <cstdint>
 #include <iostream>
 #include <future>
-#include <forward_list>
+#include <concepts>
 #include <catch2/catch.hpp>
 
 #include "../src/single_thread_queue.hpp"
 #include "../src/coarse_queue.hpp"
 #include "../src/linked_coarse_queue.hpp"
+#include "../src/lock_free_queue.hpp"
 #include "../src/fine_queue.hpp"
 #include "../src/queue.hpp"
 #include "../src/util.hpp"
 
-const int BIG_ITERATIONS = 1'000'000;
+const int BIG_ITERATIONS = 10'000'000;
 
 template <class Q>
 requires Queue<Q, int>
@@ -69,6 +69,9 @@ TEST_CASE("Single Threaded Tests", "[int]") {
     std::cout << std::endl << "FQueue" << std::endl;
     bench_enqueue<FQueue<int>>();
 
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_enqueue<LFQueue<int>>();
+
     std::cout << std::endl;
 
     std::cout << "--------------------------------" << std::endl;
@@ -86,6 +89,9 @@ TEST_CASE("Single Threaded Tests", "[int]") {
 
     std::cout << std::endl << "FQueue" << std::endl;
     bench_dequeue<FQueue<int>>();
+
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_dequeue<LFQueue<int>>();
 
     std::cout << std::endl;
 }
@@ -176,6 +182,9 @@ TEST_CASE("Many Threads") {
     std::cout << std::endl << "FQueue" << std::endl;
     bench_one_one<FQueue<int>>();
 
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_one_one<LFQueue<int>>();
+
     std::cout << std::endl;
 
     std::cout << "--------------------------------" << std::endl;
@@ -191,6 +200,9 @@ TEST_CASE("Many Threads") {
     std::cout << std::endl << "FQueue" << std::endl;
     bench_five_one<FQueue<int>>();
 
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_five_one<LFQueue<int>>();
+
     std::cout << std::endl;
 
     std::cout << "------------------------------------------" << std::endl;
@@ -205,6 +217,9 @@ TEST_CASE("Many Threads") {
 
     std::cout << std::endl << "FQueue" << std::endl;
     bench_three_three<FQueue<int>>();
+
+    std::cout << std::endl << "LFQueue" << std::endl;
+    bench_three_three<LFQueue<int>>();
 
     std::cout << std::endl;
 }
