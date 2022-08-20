@@ -13,6 +13,7 @@
 \usepackage{url}
 \usepackage{hyperref}
 \usepackage{multirow}
+\usepackage{longtable}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{5pt}
@@ -35,10 +36,8 @@ implementations, in several scenarios.
 
 \section{Background Concepts}
 % Redo
-In this section I will, unless otherwise stated, use \textit{thread} to refer to
-any situation where there exist two different operations which can be switched
-between after any instruction the operations carried out, even if they have not yet
-finished. This covers both OS threads, and async tasks. 
+In this section I will use \textit{thread} to refer to both software threads,
+hardware threads, and async tasks.
 
 When referring to two threads carrying out a set of instructions at the
 \textit{same} time, I mean that the order in which the instructions are executed
@@ -311,6 +310,33 @@ Lock-Free               & 10ns        & 0.0           & 17ns        & 2.1
 \caption{Single Threaded Benchmarks}
 \label{tab:single-threaded}
 \end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{c|cccccccccc}
+\hline
+\multirow{2}{*}{Queues} & \multicolumn{2}{c}{One-One} & \multicolumn{2}{c}{Five-One} & \multicolumn{2}{c}{One-Five} & \multicolumn{2}{c}{Two-Two} & \multicolumn{2}{c}{Three-Three} \\
+                        & mean        & std dev       & mean        & std dev        & mean        & std dev        & mean        & std dev       & mean        & std dev       \\ \hline
+Coarse Grain            & 2080ms      & 930           & 967ms       & 84             & 1010ms      & 42             & 1370ms      & 78            & 1610ms      & 100           \\
+Linked Coarse           & 1700ms      & 160           & 1760ms      & 100            & 1770ms      & 90             & 2840ms      & 100           & 3870ms      & 230           \\
+Fine Grain              & 4290ms      & 780           & 1620ms      & 38             & 1620ms      & 40             & 2100ms      & 130           & 2700ms      & 100           \\
+Lock-Free               & 1660ms      & 190           & 414ms       & 8.9            & 403ms       & 12             & 943ms       & 29            & 778ms       & 23            
+\end{tabular}
+\caption{Multi Threaded Benchmarks}
+\label{tab:multi-threaded}
+\end{table}
+
+Table 1 shows that all methods of ensuring thread-safety incur a cost to
+performance, with a singly locked queue being the fastest on average over
+enqueue and dequeue operations. Much of this performance is down to the
+superior data-structure used.
+
+Table 2 shows that the finely locked queue offers no performance gains over
+the coarsely locked queue backed by the \verb|std::deque|, across many
+multithreaded scenarios. The lock-free queue performs the best, especially
+with unbalanced enqueue and dequeue threads, though I suspect much of this
+performance lead would disappear if the lock-free queue implementation
+freed its memory rather than leaking it.
 
 \section{Evaluation and Conclusion}
 From the results it is clear that there is no one best thread-safe queue
