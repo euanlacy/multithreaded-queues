@@ -7,5 +7,4 @@ compile_commands.json
 *.bbl
 *.blg
 *.log
-*.pdf
 .gdb_history
